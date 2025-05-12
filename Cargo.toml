@@ -1,0 +1,8 @@
+[package]
+name = "rust-ip-lookup"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+trust-dns-resolver = "0.22"
+text-to-ascii-art = "0.1.10"
