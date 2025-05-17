@@ -1,7 +1,9 @@
 use std::fs::File;
 use std::io::{self, BufRead};
+use std::net::{SocketAddr};
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 use trust_dns_resolver::TokioAsyncResolver;
 use trust_dns_resolver::config::*;
 use text_to_ascii_art::to_art;
@@ -17,6 +19,10 @@ struct Options {
     /// File containing the list of subdomains (optional)
     #[clap(short, long)]
     file: Option<String>,
+    
+    /// Scan open ports of a domain
+    #[clap(short = 's', long = "open-ports")]
+    scan_ports: bool,
 }
 
 #[tokio::main]
@@ -43,6 +49,9 @@ async fn main() {
         Ok(ip_addresses) => {
             for ip in ip_addresses {
                 println!("IP address found {} for domain {}", ip, domain);
+                let start_port: u16 = 1;
+                let end_port: u16 = 1024;
+                scan_ports(ip, start_port, end_port).await;
             }
         }
         Err(e) => {
@@ -101,4 +110,21 @@ where
 {
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
+}
+
+async fn scan_ports(ip: std::net::IpAddr, start_port: u16, end_port: u16) {
+    for port in start_port..=end_port {
+        if scan_port(ip, port).await {
+            println!("Port {} is open!!", port);
+        }
+    }
+}
+
+async fn scan_port(ip: std::net::IpAddr, port: u16) -> bool {
+    let socket_addr = SocketAddr::new(ip, port);
+    match tokio::time::timeout(Duration::from_millis(100), tokio::net::TcpStream::connect(&socket_addr)).await {
+        Ok(Ok(_)) => true,
+        Ok(Err(_)) => false,
+        Err(_) => false,
+    }
 }
